@@ -1,77 +1,83 @@
-class Vertex<T : Hashable> {
-	let value : T
-	var edges : [Vertex] = [Vertex]()
-	
-	init(value: T) {
-		self.value = value
-	}
+protocol Node: class, Hashable {
+    associatedtype Value
+    
+    var value: Value { get }
+    var edges: [Self] { get set }
 }
 
-infix operator → { }
-func →<T>(lhs: Vertex<T>, rhs: Vertex<T>) -> Vertex<T> {
-	lhs.edges.append(rhs)
-	return lhs
+infix operator  >>>
+
+extension Node {
+    static func >>>(lhs: Self, rhs: Self) {
+        lhs.edges.append(rhs)
+    }
 }
 
-var a = Vertex(value: "A")
-var b = Vertex(value: "B")
-var c = Vertex(value: "C")
-var d = Vertex(value: "D")
-var e = Vertex(value: "E")
-var f = Vertex(value: "F")
-var g = Vertex(value: "G")
-var h = Vertex(value: "H")
-
-a→c
-b→c
-b→d
-c→e
-d→f
-e→f
-e→h
-f→g
-
-extension Vertex : Hashable {
-	var hashValue : Int {
-		return value.hashValue
-	}
+extension Node where Value: Hashable {
+    var hashValue: Int {
+        return value.hashValue
+    }
+    
+    static func ==(lhs: Self, rhs: Self) -> Bool {
+        return lhs.value == rhs.value
+    }
 }
 
-func ==<T>(lhs: Vertex<T>, rhs: Vertex<T>) -> Bool {
-	return lhs.value == rhs.value
+final class Vertex<T: Hashable>: Node {
+    let value: T
+    var edges: [Vertex] = [Vertex]()
+    
+    init(_ value: T) {
+        self.value = value
+    }
 }
 
-struct Graph<T : Hashable> {
-	let vertices : [Vertex<T>]
+var a = Vertex("A")
+var b = Vertex("B")
+var c = Vertex("C")
+var d = Vertex("D")
+var e = Vertex("E")
+var f = Vertex("F")
+var g = Vertex("G")
+var h = Vertex("H")
 
-	func topologicalSort() -> [Vertex<T>] {
-		func visit(vertex: Vertex<T>, inout visited: Set<Vertex<T>>, inout stack: [Vertex<T>]) {
-			if visited.contains(vertex) {
-				return
-			} else {
-				visited.insert(vertex)
-				
-				for edge in vertex.edges {
-					visit(edge, visited: &visited, stack: &stack)
-				}
-				
-				stack.append(vertex)
-			}
-		}
-		
-		var stack = [Vertex<T>]()
-		var visited = Set<Vertex<T>>()
-		
-		for vertex in vertices {
-			visit(vertex, visited: &visited, stack: &stack)
-		}
-		
-		return stack.reverse()
-	}
+a >>> c
+b >>> c
+b >>> d
+c >>> e
+d >>> f
+e >>> f
+e >>> h
+f >>> g
+
+fileprivate extension Node {
+    func visit(visited: inout Set<Self>, stack: inout [Self]) {
+        if !visited.contains(self) {
+            visited.insert(self)
+            
+            for edge in self.edges {
+                edge.visit(visited: &visited, stack: &stack)
+            }
+            
+            stack.append(self)
+        }
+    }
+}
+
+extension Collection where Element: Node {
+    func topologicalSort() -> [Element] {
+        var stack: [Element] = []
+        var visited = Set<Element>()
+        
+        for vertex in self {
+            vertex.visit(visited: &visited, stack: &stack)
+        }
+        
+        return stack.reversed()
+    }
 }
 
 let edges = [a, b, c, d, e, f]
-let expectedTopologicalSort = [b, d, a, c, e, h, f ,g]
-let graph = Graph(vertices: edges)
+let expectedTopologicalSort = [b, d, a, c, e, h, f, g]
 
-print(graph.topologicalSort() == expectedTopologicalSort)
+print(edges.topologicalSort() == expectedTopologicalSort)
